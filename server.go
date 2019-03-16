@@ -19,8 +19,7 @@ var (
 
 // Server is socks5 server wrapper
 type Server struct {
-	UserName          string
-	Password          string
+	Authenticate      Authenticator
 	Method            byte
 	SupportedCommands []byte
 	TCPAddr           *net.TCPAddr
@@ -44,8 +43,10 @@ type UDPExchange struct {
 	RemoteConn *net.UDPConn
 }
 
+type Authenticator func(username, password string) bool
+
 // NewClassicServer return a server which allow none method
-func NewClassicServer(addr, ip, username, password string, tcpTimeout, tcpDeadline, udpDeadline, udpSessionTime int) (*Server, error) {
+func NewClassicServer(addr, ip string, auth Authenticator, tcpTimeout, tcpDeadline, udpDeadline, udpSessionTime int) (*Server, error) {
 	_, p, err := net.SplitHostPort(addr)
 	if err != nil {
 		return nil, err
@@ -63,15 +64,15 @@ func NewClassicServer(addr, ip, username, password string, tcpTimeout, tcpDeadli
 		return nil, err
 	}
 	m := MethodNone
-	if username != "" && password != "" {
+	if auth != nil {
 		m = MethodUsernamePassword
 	}
+
 	cs := cache.New(cache.NoExpiration, cache.NoExpiration)
 	cs1 := cache.New(cache.NoExpiration, cache.NoExpiration)
 	s := &Server{
 		Method:            m,
-		UserName:          username,
-		Password:          password,
+		Authenticate:      auth,
 		SupportedCommands: []byte{CmdConnect, CmdUDP},
 		TCPAddr:           taddr,
 		UDPAddr:           uaddr,
@@ -122,13 +123,15 @@ func (s *Server) Negotiate(c *net.TCPConn) error {
 		if err != nil {
 			return err
 		}
-		if string(urq.Uname) != s.UserName || string(urq.Passwd) != s.Password {
+
+		if !s.Authenticate(string(urq.Uname), string(urq.Passwd)) {
 			urp := NewUserPassNegotiationReply(UserPassStatusFailure)
 			if err := urp.WriteTo(c); err != nil {
 				return err
 			}
 			return ErrUserPassAuth
 		}
+
 		urp := NewUserPassNegotiationReply(UserPassStatusSuccess)
 		if err := urp.WriteTo(c); err != nil {
 			return err
