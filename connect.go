@@ -3,15 +3,17 @@ package socks5
 import (
 	"log"
 	"net"
+
+	"github.com/txthinking/x"
 )
 
 // Connect remote conn which u want to connect with your dialer
 // Error or OK both replied.
-func (r *Request) Connect(c *net.TCPConn) (*net.TCPConn, error) {
+func (r *Request) Connect(c *net.TCPConn, d x.Dialer) (*net.TCPConn, error) {
 	if Debug {
 		log.Println("Call:", r.Address())
 	}
-	tmp, err := Dial.Dial("tcp", r.Address())
+	tmp, err := d.Dial("tcp", r.Address())
 	if err != nil {
 		var p *Reply
 		if r.Atyp == ATYPIPv4 || r.Atyp == ATYPDomain {

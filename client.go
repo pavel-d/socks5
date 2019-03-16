@@ -4,6 +4,8 @@ import (
 	"errors"
 	"net"
 	"time"
+
+	"github.com/txthinking/x"
 )
 
 // Client is socks5 client wrapper
@@ -16,6 +18,7 @@ type Client struct {
 	TCPDeadline int // not refreshed
 	TCPTimeout  int
 	UDPDeadline int // refreshed
+	Dialer      x.Dialer
 }
 
 func NewClient(addr, username, password string, tcpTimeout, tcpDeadline, udpDeadline int) (*Client, error) {
@@ -35,8 +38,13 @@ func NewClient(addr, username, password string, tcpTimeout, tcpDeadline, udpDead
 		TCPTimeout:  tcpTimeout,
 		TCPDeadline: tcpDeadline,
 		UDPDeadline: udpDeadline,
+		Dialer:      x.DefaultDial,
 	}
 	return c, nil
+}
+
+func (c *Client) SetDialer(d x.Dialer) {
+	c.Dialer = d
 }
 
 func (c *Client) Negotiate() error {

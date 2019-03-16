@@ -7,6 +7,7 @@ import (
 	"time"
 
 	cache "github.com/patrickmn/go-cache"
+	"github.com/txthinking/x"
 )
 
 var (
@@ -34,6 +35,7 @@ type Server struct {
 	UDPSessionTime    int // If client does't send address, use this fixed time
 	Handle            Handler
 	TCPUDPAssociate   *cache.Cache
+	Dialer            x.Dialer
 }
 
 // UDPExchange used to store client address and remote connection
@@ -80,8 +82,13 @@ func NewClassicServer(addr, ip, username, password string, tcpTimeout, tcpDeadli
 		UDPDeadline:       udpDeadline,
 		UDPSessionTime:    udpSessionTime,
 		TCPUDPAssociate:   cs1,
+		Dialer:            x.DefaultDial,
 	}
 	return s, nil
+}
+
+func (s *Server) SetDialer(d x.Dialer) {
+	s.Dialer = d
 }
 
 // Negotiate handle negotiate packet.
@@ -282,7 +289,7 @@ type DefaultHandle struct {
 // TCPHandle auto handle request. You may prefer to do yourself.
 func (h *DefaultHandle) TCPHandle(s *Server, c *net.TCPConn, r *Request) error {
 	if r.Cmd == CmdConnect {
-		rc, err := r.Connect(c)
+		rc, err := r.Connect(c, s.Dialer)
 		if err != nil {
 			return err
 		}
